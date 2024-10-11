@@ -10,72 +10,70 @@ const docTemplate = `{
         "description": "{{escape .Description}}",
         "title": "{{.Title}}",
         "contact": {},
+        "license": {
+            "name": "Apache 2.0"
+        },
         "version": "{{.Version}}"
     },
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/healthz": {
+        "/api/v1/todos": {
             "get": {
+                "consumes": [
+                    "application/json"
+                ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "health"
-                ],
-                "summary": "Health check",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/handler.ResponseData"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "string"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                }
-            }
-        },
-        "/todos": {
-            "get": {
-                "tags": [
                     "todos"
                 ],
-                "summary": "Find all todos",
+                "summary": "Find todos by optional task and status",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Task to filter todos (supports partial matches)",
+                        "name": "task",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Status to filter todos (must be one of: 'created', 'processing', or 'done')",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Successfully retrieved todos",
                         "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/handler.ResponseData"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "Data": {
-                                            "type": "array",
-                                            "items": {
+                            "type": "array",
+                            "items": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/definitions/handler.ResponseData"
+                                    },
+                                    {
+                                        "type": "object",
+                                        "properties": {
+                                            "Data": {
                                                 "$ref": "#/definitions/model.Todo"
                                             }
                                         }
                                     }
-                                }
-                            ]
+                                ]
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid query parameters",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ResponseError"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Failed to fetch records from the database",
                         "schema": {
                             "$ref": "#/definitions/handler.ResponseError"
                         }
@@ -83,6 +81,7 @@ const docTemplate = `{
                 }
             },
             "post": {
+                "description": "Creates a new todo item with the specified task and optional priority",
                 "consumes": [
                     "application/json"
                 ],
@@ -95,7 +94,7 @@ const docTemplate = `{
                 "summary": "Create a new todo",
                 "parameters": [
                     {
-                        "description": "json",
+                        "description": "Todo creation request",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -106,55 +105,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "Created",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/handler.ResponseError"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/model.Todo"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/handler.ResponseError"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/handler.ResponseError"
-                        }
-                    }
-                }
-            }
-        },
-        "/todos/:id": {
-            "get": {
-                "tags": [
-                    "todos"
-                ],
-                "summary": "Find a todo",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
+                        "description": "Successfully created a new todo item",
                         "schema": {
                             "allOf": [
                                 {
@@ -172,19 +123,75 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/handler.ResponseError"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
+                        "description": "Invalid request parameters",
                         "schema": {
                             "$ref": "#/definitions/handler.ResponseError"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Internal server error while creating the todo item",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ResponseError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/todos/{id}": {
+            "get": {
+                "description": "Retrieves a todo item with the specified ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "todos"
+                ],
+                "summary": "Find a todo",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID of the todo to be retrieved",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved the todo item",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handler.ResponseData"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "Data": {
+                                            "$ref": "#/definitions/model.Todo"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameters",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ResponseError"
+                        }
+                    },
+                    "404": {
+                        "description": "Todo item not found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ResponseError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error while retrieving the todo item",
                         "schema": {
                             "$ref": "#/definitions/handler.ResponseError"
                         }
@@ -192,6 +199,7 @@ const docTemplate = `{
                 }
             },
             "put": {
+                "description": "Updates the details of a todo item with the specified ID",
                 "consumes": [
                     "application/json"
                 ],
@@ -204,24 +212,25 @@ const docTemplate = `{
                 "summary": "Update a todo",
                 "parameters": [
                     {
-                        "description": "body",
-                        "name": "body",
+                        "type": "integer",
+                        "description": "ID of the todo to be updated",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Todo update request body",
+                        "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
                             "$ref": "#/definitions/handler.UpdateRequestBody"
                         }
-                    },
-                    {
-                        "type": "integer",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
                     }
                 ],
                 "responses": {
-                    "201": {
-                        "description": "Created",
+                    "200": {
+                        "description": "Successfully updated the todo item",
                         "schema": {
                             "allOf": [
                                 {
@@ -239,13 +248,19 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Invalid request parameters",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ResponseError"
+                        }
+                    },
+                    "404": {
+                        "description": "Todo item not found",
                         "schema": {
                             "$ref": "#/definitions/handler.ResponseError"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Internal server error while updating the todo item",
                         "schema": {
                             "$ref": "#/definitions/handler.ResponseError"
                         }
@@ -253,6 +268,13 @@ const docTemplate = `{
                 }
             },
             "delete": {
+                "description": "Deletes a todo item with the specified ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
                     "todos"
                 ],
@@ -260,6 +282,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "integer",
+                        "description": "ID of the todo to be deleted",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -267,18 +290,56 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "204": {
-                        "description": "No Content"
+                        "description": "Successfully deleted the todo item"
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Invalid request parameters",
                         "schema": {
                             "$ref": "#/definitions/handler.ResponseError"
                         }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Todo item not found",
                         "schema": {
                             "$ref": "#/definitions/handler.ResponseError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error while deleting the todo item",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ResponseError"
+                        }
+                    }
+                }
+            }
+        },
+        "/healthz": {
+            "get": {
+                "description": "Check the health status of the service",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "health"
+                ],
+                "summary": "Health Check",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handler.ResponseData"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "Data": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "500": {
@@ -298,6 +359,9 @@ const docTemplate = `{
                 "task"
             ],
             "properties": {
+                "priority": {
+                    "type": "integer"
+                },
                 "task": {
                     "type": "string"
                 }
@@ -365,6 +429,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "id": {
+                    "type": "integer"
+                },
+                "priority": {
                     "type": "integer"
                 },
                 "status": {

@@ -2,6 +2,8 @@
 package repository
 
 import (
+	"sort"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/zuu-development/fullstack-examination-2024/internal/model"
 	"gorm.io/gorm"
@@ -13,7 +15,7 @@ type Todo interface {
 	Delete(id int) error
 	Update(t *model.Todo) error
 	Find(id int) (*model.Todo, error)
-	FindAll() ([]*model.Todo, error)
+	FindAll(task string, status model.Status) ([]*model.Todo, error)
 }
 
 type todo struct {
@@ -65,11 +67,28 @@ func (td *todo) Find(id int) (*model.Todo, error) {
 	return todo, nil
 }
 
-func (td *todo) FindAll() ([]*model.Todo, error) {
+func (td *todo) FindAll(task string, status model.Status) ([]*model.Todo, error) {
 	var todos []*model.Todo
-	err := td.db.Find(&todos).Error
+	query := td.db.Model(&todos)
+
+	if task != "" {
+		query = query.Where("task = ?", task)
+	}
+	if string(status) != "" {
+		query = query.Where("status = ?", string(status))
+	}
+
+	err := query.Find(&todos).Error
 	if err != nil {
 		return nil, err
 	}
+	sortTodosByPriority(todos)
 	return todos, nil
+}
+
+// Sort a slice of Todo structs by ID in decreasing order
+func sortTodosByPriority(todos []*model.Todo) {
+	sort.Slice(todos, func(i, j int) bool {
+		return todos[i].Priority > todos[j].Priority
+	})
 }
